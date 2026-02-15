@@ -4,12 +4,8 @@ version = "1.0.0"
 description = "3-Way Matcher Agent — Supply Chain Document Reconciliation"
 requires-python = ">=3.12"
 dependencies = [
-    "llama-index>=0.12",
-    "llama-index-core>=0.12",
-    "llama-index-llms-gemini>=0.4",
     "llama-index-workflows[server]>=2.2.0",
-    "llama-parse>=0.5",
-    "llama-deploy>=0.4",
+    "google-generativeai>=0.8",
     "python-dotenv>=1.0",
 ]
 
