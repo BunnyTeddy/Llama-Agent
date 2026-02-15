@@ -1,8 +1,5 @@
 name = "three-way-matcher"
+env_files = [".env"]
 
 [workflows]
 three_way_matcher = "workflow:workflow"
-
-env_files = [".env"]
-
-llama_cloud = true
