@@ -1,0 +1,6 @@
+llama-index>=0.14.0
+llama-index-core>=0.14.0
+llama-index-llms-openai>=0.6.0
+llama-index-tools-mcp>=0.4.0
+llama-parse>=0.6.0
+python-dotenv>=1.0.0
