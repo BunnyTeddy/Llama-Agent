@@ -1,45 +1,31 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path";
 
-export default defineConfig(({ }) => {
-    const deploymentName = process.env.LLAMA_DEPLOY_DEPLOYMENT_NAME;
+export default defineConfig(() => {
     const basePath = process.env.LLAMA_DEPLOY_DEPLOYMENT_BASE_PATH;
-    const projectId = process.env.LLAMA_DEPLOY_PROJECT_ID;
-    const port = process.env.PORT;
-    const serverPort = process.env.LLAMA_DEPLOY_SERVER_PORT;
+    const port = process.env.PORT ? parseInt(process.env.PORT) : undefined;
+
     return {
         plugins: [react()],
-        resolve: {
-            alias: {
-                "@": path.resolve(__dirname, "./src"),
-            },
-        },
-        server: {
-            port: port ? parseInt(port) : undefined,
-            host: true,
-            hmr: {
-                port: port ? parseInt(port) : undefined,
-                clientPort: serverPort ? parseInt(serverPort) : undefined,
-            },
-        },
+        server: { port, host: true, hmr: { port } },
+        base: basePath,
         build: {
             outDir: "dist",
-            sourcemap: true,
         },
-        base: basePath,
         define: {
-            ...(deploymentName && {
-                "import.meta.env.VITE_LLAMA_DEPLOY_DEPLOYMENT_NAME":
-                    JSON.stringify(deploymentName),
-            }),
             ...(basePath && {
                 "import.meta.env.VITE_LLAMA_DEPLOY_DEPLOYMENT_BASE_PATH":
                     JSON.stringify(basePath),
             }),
-            ...(projectId && {
-                "import.meta.env.VITE_LLAMA_CLOUD_PROJECT_ID":
-                    JSON.stringify(projectId),
+            ...(process.env.LLAMA_DEPLOY_DEPLOYMENT_NAME && {
+                "import.meta.env.VITE_LLAMA_DEPLOY_DEPLOYMENT_NAME": JSON.stringify(
+                    process.env.LLAMA_DEPLOY_DEPLOYMENT_NAME,
+                ),
+            }),
+            ...(process.env.LLAMA_DEPLOY_PROJECT_ID && {
+                "import.meta.env.VITE_LLAMA_DEPLOY_PROJECT_ID": JSON.stringify(
+                    process.env.LLAMA_DEPLOY_PROJECT_ID,
+                ),
             }),
         },
     };
