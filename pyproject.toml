@@ -17,3 +17,4 @@ three_way_matcher = "workflow:workflow"
 
 [tool.llamadeploy.ui]
 directory = "./ui"
+build_output_dir = "./ui/dist"
