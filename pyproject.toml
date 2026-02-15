@@ -8,6 +8,7 @@ dependencies = [
     "llama-index-core>=0.12",
     "llama-index-llms-gemini>=0.4",
     "llama-parse>=0.5",
+    "llama-deploy>=0.4",
     "python-dotenv>=1.0",
 ]
 

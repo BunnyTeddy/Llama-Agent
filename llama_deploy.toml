@@ -1,5 +1,4 @@
 name = "three-way-matcher"
-env_files = [".env"]
 
 [workflows]
 three_way_matcher = "workflow:workflow"
