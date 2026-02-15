@@ -1,0 +1,18 @@
+[project]
+name = "three-way-matcher"
+version = "1.0.0"
+description = "3-Way Matcher Agent — Supply Chain Document Reconciliation"
+requires-python = ">=3.12"
+dependencies = [
+    "llama-index>=0.12",
+    "llama-index-core>=0.12",
+    "llama-index-llms-gemini>=0.4",
+    "llama-parse>=0.5",
+    "python-dotenv>=1.0",
+]
+
+[tool.llamadeploy]
+name = "three-way-matcher"
+
+[tool.llamadeploy.workflows]
+three_way_matcher = "workflow:workflow"
