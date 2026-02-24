@@ -2,5 +2,19 @@
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "buildCommand": "npm run build",
     "outputDirectory": "dist",
-    "framework": "vite"
+    "functions": {
+        "api/*.mjs": {
+            "maxDuration": 300
+        }
+    },
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/$1"
+        },
+        {
+            "source": "/((?!api/).*)",
+            "destination": "/index.html"
+        }
+    ]
 }
