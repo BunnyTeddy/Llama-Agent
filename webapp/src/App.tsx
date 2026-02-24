@@ -3,10 +3,6 @@ import FileUpload from './components/FileUpload'
 import StepIndicator from './components/StepIndicator'
 import ResultView from './components/ResultView'
 
-// LlamaDeploy API config
-const API_URL = import.meta.env.VITE_API_URL || ''
-const API_KEY = import.meta.env.VITE_LLAMA_API_KEY || ''
-
 type AppState = 'upload' | 'processing' | 'done' | 'error'
 
 interface MatchResult {
@@ -27,7 +23,6 @@ function fileToBase64(file: File): Promise<string> {
         const reader = new FileReader()
         reader.onload = () => {
             const result = reader.result as string
-            // Remove "data:application/pdf;base64," prefix
             const base64 = result.split(',')[1]
             resolve(base64)
         }
@@ -65,14 +60,14 @@ export default function App() {
 
         try {
             // Convert PDFs to base64
-            setProgress({ percent: 20, label: '📤 Encoding PDFs to base64...', status: 'Encoding files...' })
+            setProgress({ percent: 20, label: '📤 Encoding PDFs...', status: 'Encoding files...' })
             const [poB64, dnB64, invB64] = await Promise.all([
                 fileToBase64(files.po),
                 fileToBase64(files.dn),
                 fileToBase64(files.inv),
             ])
 
-            setProgress({ percent: 30, label: '🚀 Sending to AI backend...', status: 'Calling LlamaIndex Cloud...' })
+            setProgress({ percent: 30, label: '🚀 Sending to AI backend...', status: 'Uploading to server...' })
 
             // Simulate progress while waiting for the API
             const progressTimer = setInterval(() => {
@@ -94,30 +89,11 @@ export default function App() {
                 })
             }, 3000)
 
-            // Build the LlamaDeploy API request
-            const inputPayload = JSON.stringify({
-                po: poB64,
-                dn: dnB64,
-                inv: invB64,
-            })
-
-            // Determine endpoint — if API_URL includes /deployments/, use workflow path directly
-            // Otherwise, assume it's the base deployment URL
-            const workflowUrl = API_URL.includes('/deployments/')
-                ? `${API_URL}/workflows/three_way_matcher/run`
-                : `${API_URL}/deployments/three-way-matcher/workflows/three_way_matcher/run`
-
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            }
-            if (API_KEY) {
-                headers['Authorization'] = `Bearer ${API_KEY}`
-            }
-
-            const response = await fetch(workflowUrl, {
+            // Call the Vercel serverless proxy (same origin = no CORS)
+            const response = await fetch('/api/match', {
                 method: 'POST',
-                headers,
-                body: JSON.stringify({ input: inputPayload }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ po: poB64, dn: dnB64, inv: invB64 }),
             })
 
             clearInterval(progressTimer)
@@ -127,17 +103,7 @@ export default function App() {
                 throw new Error(err.detail || `Server error: ${response.status}`)
             }
 
-            const rawData = await response.json()
-
-            // LlamaDeploy wraps the result — extract it
-            // The result could be in rawData.result or rawData directly
-            let data: MatchResult
-            const resultStr = rawData.result || rawData
-            if (typeof resultStr === 'string') {
-                data = JSON.parse(resultStr)
-            } else {
-                data = resultStr
-            }
+            const data = await response.json()
 
             setProgress({ percent: 100, label: '✅ Done!', status: 'Complete!' })
 
