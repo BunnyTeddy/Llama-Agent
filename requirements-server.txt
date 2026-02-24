@@ -1,0 +1,12 @@
+# FastAPI server dependencies
+fastapi>=0.115.0
+uvicorn>=0.34.0
+python-multipart>=0.0.20
+python-dotenv>=1.0.0
+
+# LlamaParse for PDF parsing
+llama-parse>=0.6.0
+
+# Gemini LLM for structured extraction
+llama-index-core>=0.14.0
+llama-index-llms-gemini>=0.6.0

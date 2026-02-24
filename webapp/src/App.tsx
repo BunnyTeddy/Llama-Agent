@@ -3,9 +3,9 @@ import FileUpload from './components/FileUpload'
 import StepIndicator from './components/StepIndicator'
 import ResultView from './components/ResultView'
 
-// In dev: empty string → uses Vite proxy (/api/match)
-// In production: set VITE_API_URL to your backend URL (e.g. https://your-app.llamaindex.ai)
-const API_BASE = import.meta.env.VITE_API_URL || ''
+// LlamaDeploy API config
+const API_URL = import.meta.env.VITE_API_URL || ''
+const API_KEY = import.meta.env.VITE_LLAMA_API_KEY || ''
 
 type AppState = 'upload' | 'processing' | 'done' | 'error'
 
@@ -19,6 +19,21 @@ interface ProcessingProgress {
     percent: number
     label: string
     status: string
+}
+
+/** Convert a File to base64 string (without data URI prefix) */
+function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+            const result = reader.result as string
+            // Remove "data:application/pdf;base64," prefix
+            const base64 = result.split(',')[1]
+            resolve(base64)
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+    })
 }
 
 export default function App() {
@@ -46,39 +61,63 @@ export default function App() {
 
         setAppState('processing')
         setError('')
-        setProgress({ percent: 10, label: '📤 Uploading PDFs...', status: 'Uploading files...' })
+        setProgress({ percent: 10, label: '📤 Converting PDFs...', status: 'Preparing files...' })
 
         try {
-            const formData = new FormData()
-            formData.append('po', files.po)
-            formData.append('dn', files.dn)
-            formData.append('inv', files.inv)
+            // Convert PDFs to base64
+            setProgress({ percent: 20, label: '📤 Encoding PDFs to base64...', status: 'Encoding files...' })
+            const [poB64, dnB64, invB64] = await Promise.all([
+                fileToBase64(files.po),
+                fileToBase64(files.dn),
+                fileToBase64(files.inv),
+            ])
 
-            // Simulate progress stages
-            setProgress({ percent: 25, label: '📝 Parsing with LlamaParse...', status: 'Reading PDFs with LlamaParse...' })
+            setProgress({ percent: 30, label: '🚀 Sending to AI backend...', status: 'Calling LlamaIndex Cloud...' })
 
+            // Simulate progress while waiting for the API
             const progressTimer = setInterval(() => {
                 setProgress(prev => {
-                    if (prev.percent >= 85) {
+                    if (prev.percent >= 90) {
                         clearInterval(progressTimer)
                         return prev
                     }
                     const newPercent = prev.percent + 5
                     const stages = [
-                        { at: 30, label: '📝 Parsing Purchase Order...', status: 'Extracting PO data...' },
-                        { at: 45, label: '📝 Parsing Delivery Note...', status: 'Extracting DN data...' },
-                        { at: 60, label: '📝 Parsing Invoice...', status: 'Extracting Invoice data...' },
-                        { at: 75, label: '🔀 Cross-referencing...', status: 'Cross-referencing 3 documents...' },
-                        { at: 85, label: '📊 Generating report...', status: 'Generating match report...' },
+                        { at: 35, label: '📝 Parsing Purchase Order...', status: 'LlamaParse extracting PO data...' },
+                        { at: 50, label: '📝 Parsing Delivery Note...', status: 'LlamaParse extracting DN data...' },
+                        { at: 65, label: '📝 Parsing Invoice...', status: 'LlamaParse extracting Invoice data...' },
+                        { at: 80, label: '🔀 Cross-referencing...', status: 'AI matching 3 documents...' },
+                        { at: 90, label: '📊 Generating report...', status: 'Finalizing match report...' },
                     ]
                     const stage = stages.filter(s => newPercent >= s.at).pop()
                     return { percent: newPercent, label: stage?.label || prev.label, status: stage?.status || prev.status }
                 })
-            }, 2000)
+            }, 3000)
 
-            const response = await fetch(`${API_BASE}/api/match`, {
+            // Build the LlamaDeploy API request
+            const inputPayload = JSON.stringify({
+                po: poB64,
+                dn: dnB64,
+                inv: invB64,
+            })
+
+            // Determine endpoint — if API_URL includes /deployments/, use workflow path directly
+            // Otherwise, assume it's the base deployment URL
+            const workflowUrl = API_URL.includes('/deployments/')
+                ? `${API_URL}/workflows/three_way_matcher/run`
+                : `${API_URL}/deployments/three-way-matcher/workflows/three_way_matcher/run`
+
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            }
+            if (API_KEY) {
+                headers['Authorization'] = `Bearer ${API_KEY}`
+            }
+
+            const response = await fetch(workflowUrl, {
                 method: 'POST',
-                body: formData,
+                headers,
+                body: JSON.stringify({ input: inputPayload }),
             })
 
             clearInterval(progressTimer)
@@ -88,7 +127,18 @@ export default function App() {
                 throw new Error(err.detail || `Server error: ${response.status}`)
             }
 
-            const data = await response.json()
+            const rawData = await response.json()
+
+            // LlamaDeploy wraps the result — extract it
+            // The result could be in rawData.result or rawData directly
+            let data: MatchResult
+            const resultStr = rawData.result || rawData
+            if (typeof resultStr === 'string') {
+                data = JSON.parse(resultStr)
+            } else {
+                data = resultStr
+            }
+
             setProgress({ percent: 100, label: '✅ Done!', status: 'Complete!' })
 
             setTimeout(() => {

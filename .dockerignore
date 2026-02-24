@@ -1,0 +1,15 @@
+webapp/
+ui/
+venv/
+__pycache__/
+.env
+.git/
+*.pyc
+tmp-scaffold/
+deployment/
+workflow.py
+main.py
+pyproject.toml
+llama_deploy.toml
+Dockerfile
+README.md

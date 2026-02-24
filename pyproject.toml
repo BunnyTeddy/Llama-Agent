@@ -7,6 +7,7 @@ dependencies = [
     "llama-index-workflows[server]>=2.2.0",
     "google-generativeai>=0.8",
     "python-dotenv>=1.0",
+    "llama-parse>=0.6.0",
 ]
 
 [tool.llamadeploy]
