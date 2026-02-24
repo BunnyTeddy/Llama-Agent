@@ -43,12 +43,12 @@ async def run_matching(po_path: str, dn_path: str, inv_path: str, verbose: bool 
             sys.exit(1)
 
     print("=" * 60)
-    print("  🔄 3-WAY MATCHER — Đối soát Chuỗi cung ứng")
+    print("  🔄 3-WAY MATCHER — Supply Chain Reconciliation")
     print("=" * 60)
     print(f"\n  📄 PO:      {os.path.basename(po_path)}")
     print(f"  📄 DN:      {os.path.basename(dn_path)}")
     print(f"  📄 Invoice: {os.path.basename(inv_path)}")
-    print(f"\n  ⏳ Đang xử lý... (có thể mất 30-60 giây)\n")
+    print(f"\n  ⏳ Processing... (may take 30-60 seconds)\n")
 
     from agents.orchestrator import create_workflow
 
@@ -79,7 +79,7 @@ async def run_matching(po_path: str, dn_path: str, inv_path: str, verbose: bool 
     result = await handler
 
     print("\n" + "=" * 60)
-    print("  📊 KẾT QUẢ ĐỐI SOÁT")
+    print("  📊 MATCH RESULTS")
     print("=" * 60)
     print(f"\n{result}")
 
@@ -99,12 +99,12 @@ async def run_direct_matching(po_path: str, dn_path: str, inv_path: str):
             sys.exit(1)
 
     print("=" * 60)
-    print("  🔄 3-WAY MATCHER — Đối soát Chuỗi cung ứng (Direct Mode)")
+    print("  🔄 3-WAY MATCHER — Supply Chain Reconciliation (Direct Mode)")
     print("=" * 60)
     print(f"\n  📄 PO:      {os.path.basename(po_path)}")
     print(f"  📄 DN:      {os.path.basename(dn_path)}")
     print(f"  📄 Invoice: {os.path.basename(inv_path)}")
-    print(f"\n  ⏳ Đang xử lý...\n")
+    print(f"\n  ⏳ Processing...\n")
 
     from tools.parser_tools import parse_purchase_order, parse_delivery_note, parse_invoice
     from tools.matching_tools import cross_reference, generate_report_summary

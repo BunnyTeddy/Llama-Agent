@@ -50,7 +50,7 @@ def _check_values(val_a: Any, val_b: Any, label_a: str, label_b: str) -> dict:
             "source_a": f"{label_a}: {val_a}",
             "source_b": f"{label_b}: {val_b}",
             "match": False,
-            "note": f"Missing value: {label_a if val_a is None else label_b} is N/A"
+            "note": f"Missing value: {label_a if val_a is None else label_b} is not available"
         }
 
     # Numeric comparison with tolerance
@@ -61,7 +61,7 @@ def _check_values(val_a: Any, val_b: Any, label_a: str, label_b: str) -> dict:
         note = None
         if not match:
             diff = num_a - num_b
-            note = f"Chênh lệch: {diff:+.2f} ({label_a}: {num_a}, {label_b}: {num_b})"
+            note = f"Difference: {diff:+.2f} ({label_a}: {num_a}, {label_b}: {num_b})"
         return {
             "source_a": f"{label_a}: {num_a}",
             "source_b": f"{label_b}: {num_b}",
@@ -77,7 +77,7 @@ def _check_values(val_a: Any, val_b: Any, label_a: str, label_b: str) -> dict:
         "source_a": f"{label_a}: {val_a}",
         "source_b": f"{label_b}: {val_b}",
         "match": match,
-        "note": None if match else f"Giá trị không khớp: {label_a}={val_a}, {label_b}={val_b}"
+        "note": None if match else f"Value mismatch: {label_a}={val_a}, {label_b}={val_b}"
     }
 
 
@@ -126,7 +126,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         po_qty = po_item.get("quantity")
         dn_qty = dn_item.get("quantity") if dn_item else None
 
-        check = _check_values(po_qty, dn_qty, "PO (đặt)", "DN (giao)")
+        check = _check_values(po_qty, dn_qty, "PO (ordered)", "DN (delivered)")
         checks["quantity_po_vs_dn"] = check
         if not check["match"]:
             item_matched = False
@@ -134,9 +134,9 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
                 try:
                     diff = float(po_qty) - float(dn_qty)
                     if diff > 0:
-                        check["note"] = f"Thiếu {diff:.0f} đơn vị hàng trên phiếu giao → cần xác minh trước khi thanh toán"
+                        check["note"] = f"Short {diff:.0f} units on delivery note — verify before payment"
                     else:
-                        check["note"] = f"Giao thừa {abs(diff):.0f} đơn vị so với PO → cần xác minh"
+                        check["note"] = f"Over-delivered {abs(diff):.0f} units vs PO — verify"
                 except (ValueError, TypeError):
                     pass
 
@@ -144,7 +144,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         po_price = po_item.get("unit_price")
         inv_price = inv_item.get("unit_price") if inv_item else None
 
-        check = _check_values(po_price, inv_price, "PO (giá đặt)", "INV (giá hóa đơn)")
+        check = _check_values(po_price, inv_price, "PO (agreed price)", "INV (billed price)")
         checks["unit_price_po_vs_inv"] = check
         if not check["match"]:
             item_matched = False
@@ -152,7 +152,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         # Check 3: DN quantity vs INV quantity (Delivered vs Invoiced)
         inv_qty = inv_item.get("quantity") if inv_item else None
 
-        check = _check_values(dn_qty, inv_qty, "DN (giao)", "INV (hóa đơn)")
+        check = _check_values(dn_qty, inv_qty, "DN (delivered)", "INV (invoiced)")
         checks["quantity_dn_vs_inv"] = check
         if not check["match"]:
             item_matched = False
@@ -162,7 +162,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
             try:
                 calculated = float(inv_item["unit_price"]) * float(inv_item["quantity"])
                 actual = float(inv_item["total"])
-                check = _check_values(calculated, actual, "Tính lại (giá×SL)", "INV (thành tiền)")
+                check = _check_values(calculated, actual, "Recalculated (price×qty)", "INV (line total)")
                 checks["line_total_verification"] = check
                 if not check["match"]:
                     item_matched = False
@@ -175,7 +175,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         results.append({
             "item_code": item_code,
             "item_name": item_name,
-            "status": "🟢 Khớp 100%" if item_matched else "🔴 Sai lệch",
+            "status": "🟢 Full Match" if item_matched else "🔴 Mismatch",
             "checks": checks
         })
 
@@ -188,13 +188,13 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
             results.append({
                 "item_code": dn_code,
                 "item_name": dn_name,
-                "status": "🔴 Sai lệch",
+                "status": "🔴 Mismatch",
                 "checks": {
                     "unexpected_item": {
-                        "source_a": "PO: Không có",
-                        "source_b": f"DN: Có ({dn_item.get('quantity', '?')} đơn vị)",
+                        "source_a": "PO: Not found",
+                        "source_b": f"DN: Present ({dn_item.get('quantity', '?')} units)",
                         "match": False,
-                        "note": "Hàng giao không có trong đơn đặt hàng → từ chối"
+                        "note": "Delivered item not found in Purchase Order — reject"
                     }
                 }
             })
@@ -204,7 +204,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
 
     report = {
         "match_summary": {
-            "status": "🟢 ALL MATCHED — Chấp nhận thanh toán" if all_matched else "🔴 MISMATCH DETECTED — Cần xem xét",
+            "status": "🟢 ALL MATCHED — Approve Payment" if all_matched else "🔴 MISMATCH DETECTED — Review Required",
             "total_items": len(results),
             "matched": matched_count,
             "mismatched": mismatched_count
@@ -216,9 +216,9 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         },
         "details": results,
         "recommendation": (
-            "✅ Chấp nhận thanh toán — Tất cả chứng từ khớp nhau."
+            "✅ Approve payment — All documents are fully reconciled."
             if all_matched else
-            f"❌ Từ chối thanh toán — Phát hiện {mismatched_count} sai lệch. Cần liên hệ nhà cung cấp để đối chiếu."
+            f"❌ Reject payment — {mismatched_count} discrepancies detected. Contact supplier for clarification."
         )
     }
 
@@ -241,7 +241,7 @@ def generate_report_summary(match_report_json: str) -> str:
 
     lines = []
     lines.append("=" * 60)
-    lines.append("  BÁO CÁO ĐỐI SOÁT 3 CHIỀU (3-WAY MATCH REPORT)")
+    lines.append("  3-WAY MATCH REPORT")
     lines.append("=" * 60)
     lines.append("")
 
@@ -250,9 +250,9 @@ def generate_report_summary(match_report_json: str) -> str:
     lines.append(f"  DN: {doc_refs.get('dn_number', 'N/A')}")
     lines.append(f"  INV: {doc_refs.get('inv_number', 'N/A')}")
     lines.append("")
-    lines.append(f"  Trạng thái: {summary.get('status', 'N/A')}")
-    lines.append(f"  Tổng mặt hàng: {summary.get('total_items', 0)}")
-    lines.append(f"  Khớp: {summary.get('matched', 0)} | Sai lệch: {summary.get('mismatched', 0)}")
+    lines.append(f"  Status: {summary.get('status', 'N/A')}")
+    lines.append(f"  Total items: {summary.get('total_items', 0)}")
+    lines.append(f"  Matched: {summary.get('matched', 0)} | Mismatched: {summary.get('mismatched', 0)}")
     lines.append("")
     lines.append("-" * 60)
 

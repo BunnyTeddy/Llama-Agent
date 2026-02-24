@@ -84,7 +84,7 @@ async def parse_purchase_order(file_path: str) -> str:
 }"""
 
     markdown = await _parse_pdf_to_markdown(file_path)
-    result = await _extract_structured_data(markdown, "Purchase Order (Đơn đặt hàng)", schema)
+    result = await _extract_structured_data(markdown, "Purchase Order", schema)
     return result
 
 
@@ -115,7 +115,7 @@ async def parse_delivery_note(file_path: str) -> str:
 }"""
 
     markdown = await _parse_pdf_to_markdown(file_path)
-    result = await _extract_structured_data(markdown, "Delivery Note (Phiếu giao hàng)", schema)
+    result = await _extract_structured_data(markdown, "Delivery Note", schema)
     return result
 
 
@@ -149,5 +149,5 @@ async def parse_invoice(file_path: str) -> str:
 }"""
 
     markdown = await _parse_pdf_to_markdown(file_path)
-    result = await _extract_structured_data(markdown, "Invoice (Hóa đơn)", schema)
+    result = await _extract_structured_data(markdown, "Invoice", schema)
     return result

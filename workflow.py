@@ -57,21 +57,21 @@ def _check_values(val1, val2, label1: str, label2: str) -> dict:
     if val1 is None or val2 is None:
         return {
             "match": False,
-            "status": "🔴 THIẾU DỮ LIỆU",
+            "status": "🔴 MISSING DATA",
             label1: val1,
             label2: val2,
         }
     try:
         v1, v2 = float(val1), float(val2)
         if abs(v1 - v2) < 0.01:
-            return {"match": True, "status": "🟢 KHỚP", label1: v1, label2: v2}
+            return {"match": True, "status": "🟢 MATCH", label1: v1, label2: v2}
         else:
-            return {"match": False, "status": "🔴 LỆCH", label1: v1, label2: v2}
+            return {"match": False, "status": "🔴 MISMATCH", label1: v1, label2: v2}
     except (ValueError, TypeError):
         if str(val1).strip().lower() == str(val2).strip().lower():
-            return {"match": True, "status": "🟢 KHỚP", label1: val1, label2: val2}
+            return {"match": True, "status": "🟢 MATCH", label1: val1, label2: val2}
         else:
-            return {"match": False, "status": "🔴 LỆCH", label1: val1, label2: val2}
+            return {"match": False, "status": "🔴 MISMATCH", label1: val1, label2: val2}
 
 
 def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
@@ -99,14 +99,14 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         # Check 1: PO qty vs DN qty
         po_qty = po_item.get("quantity")
         dn_qty = dn_item.get("quantity") if dn_item else None
-        check = _check_values(po_qty, dn_qty, "PO (đặt)", "DN (giao)")
+        check = _check_values(po_qty, dn_qty, "PO (ordered)", "DN (delivered)")
         checks["quantity_po_vs_dn"] = check
         if not check["match"]:
             item_matched = False
 
         # Check 2: DN qty vs INV qty
         inv_qty = inv_item.get("quantity") if inv_item else None
-        check = _check_values(dn_qty, inv_qty, "DN (giao)", "INV (hóa đơn)")
+        check = _check_values(dn_qty, inv_qty, "DN (delivered)", "INV (invoiced)")
         checks["quantity_dn_vs_inv"] = check
         if not check["match"]:
             item_matched = False
@@ -114,7 +114,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         # Check 3: PO unit price vs INV unit price
         po_price = po_item.get("unit_price")
         inv_price = inv_item.get("unit_price") if inv_item else None
-        check = _check_values(po_price, inv_price, "PO (giá)", "INV (giá)")
+        check = _check_values(po_price, inv_price, "PO (price)", "INV (price)")
         checks["unit_price_po_vs_inv"] = check
         if not check["match"]:
             item_matched = False
@@ -125,7 +125,7 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         results.append({
             "item_code": item_code,
             "item_name": item_name,
-            "status": "🟢 KHỚP" if item_matched else "🔴 LỆCH",
+            "status": "🟢 MATCH" if item_matched else "🔴 MISMATCH",
             "checks": checks,
         })
 
@@ -133,8 +133,8 @@ def cross_reference(po_json: str, dn_json: str, inv_json: str) -> str:
         "po_number": po_data.get("po_number", "N/A"),
         "dn_number": dn_data.get("dn_number", "N/A"),
         "inv_number": inv_data.get("inv_number", "N/A"),
-        "overall_status": "🟢 TẤT CẢ KHỚP" if all_matched else "🔴 CÓ SAI LỆCH",
-        "recommendation": "✅ Đề xuất DUYỆT thanh toán" if all_matched else "❌ Đề xuất TẠM DỪNG thanh toán — cần xác minh",
+        "overall_status": "🟢 ALL MATCHED" if all_matched else "🔴 MISMATCH DETECTED",
+        "recommendation": "✅ APPROVE payment" if all_matched else "❌ HOLD payment — verification required",
         "items": results,
     }
     return json.dumps(report, ensure_ascii=False, indent=2)

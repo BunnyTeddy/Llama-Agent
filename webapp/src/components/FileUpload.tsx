@@ -83,7 +83,7 @@ export default function FileUpload({ type, label, sublabel, icon, file, onFileCh
 
             {!file && (
                 <div className="upload-card__sublabel" style={{ marginTop: '0.5rem', fontSize: '0.65rem' }}>
-                    Kéo thả hoặc click để chọn PDF
+                    Drag & drop or click to select PDF
                 </div>
             )}
         </div>

@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import tempfile
+import traceback
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -21,6 +22,19 @@ import uvicorn
 
 from tools.parser_tools import parse_purchase_order, parse_delivery_note, parse_invoice
 from tools.matching_tools import cross_reference, generate_report_summary
+
+
+def _try_parse_json(text):
+    """Safely parse JSON string, return raw string if not valid JSON."""
+    if isinstance(text, dict):
+        return text
+    try:
+        import re
+        cleaned = re.sub(r'^```(?:json)?\s*\n?', '', text.strip())
+        cleaned = re.sub(r'\n?```\s*$', '', cleaned)
+        return json.loads(cleaned)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return text
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────
@@ -50,10 +64,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow frontend dev server
+# CORS — allow frontend origins (dev + Vercel production)
+_default_origins = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+_cors_origins = os.getenv("CORS_ORIGINS", _default_origins)
+allowed_origins = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -95,11 +113,15 @@ async def match_documents(
         po_path, dn_path, inv_path = temp_files
 
         # Parse all 3 PDFs in parallel using LlamaParse + Gemini
+        print("⏳ Parsing 3 PDFs...")
         po_json, dn_json, inv_json = await asyncio.gather(
             parse_purchase_order(po_path),
             parse_delivery_note(dn_path),
             parse_invoice(inv_path),
         )
+        print(f"✅ PO parsed: {po_json[:100]}...")
+        print(f"✅ DN parsed: {dn_json[:100]}...")
+        print(f"✅ INV parsed: {inv_json[:100]}...")
 
         # Cross-reference
         report_json = cross_reference(po_json, dn_json, inv_json)
@@ -113,13 +135,14 @@ async def match_documents(
             "report": report,
             "summary": summary,
             "parsed_data": {
-                "po": json.loads(po_json) if isinstance(po_json, str) else po_json,
-                "dn": json.loads(dn_json) if isinstance(dn_json, str) else dn_json,
-                "inv": json.loads(inv_json) if isinstance(inv_json, str) else inv_json,
+                "po": _try_parse_json(po_json),
+                "dn": _try_parse_json(dn_json),
+                "inv": _try_parse_json(inv_json),
             },
         }
 
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(500, f"Matching failed: {str(e)}")
 
     finally:

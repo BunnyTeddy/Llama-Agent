@@ -3,6 +3,10 @@ import FileUpload from './components/FileUpload'
 import StepIndicator from './components/StepIndicator'
 import ResultView from './components/ResultView'
 
+// In dev: empty string → uses Vite proxy (/api/match)
+// In production: set VITE_API_URL to your backend URL (e.g. https://your-app.llamaindex.ai)
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 type AppState = 'upload' | 'processing' | 'done' | 'error'
 
 interface MatchResult {
@@ -42,7 +46,7 @@ export default function App() {
 
         setAppState('processing')
         setError('')
-        setProgress({ percent: 10, label: '📤 Uploading PDFs...', status: 'Đang tải lên...' })
+        setProgress({ percent: 10, label: '📤 Uploading PDFs...', status: 'Uploading files...' })
 
         try {
             const formData = new FormData()
@@ -51,7 +55,7 @@ export default function App() {
             formData.append('inv', files.inv)
 
             // Simulate progress stages
-            setProgress({ percent: 25, label: '📝 Parsing with LlamaParse...', status: 'Đang đọc PDF bằng LlamaParse...' })
+            setProgress({ percent: 25, label: '📝 Parsing with LlamaParse...', status: 'Reading PDFs with LlamaParse...' })
 
             const progressTimer = setInterval(() => {
                 setProgress(prev => {
@@ -61,18 +65,18 @@ export default function App() {
                     }
                     const newPercent = prev.percent + 5
                     const stages = [
-                        { at: 30, label: '📝 Parsing Purchase Order...', status: 'Đang phân tích Đơn đặt hàng...' },
-                        { at: 45, label: '📝 Parsing Delivery Note...', status: 'Đang phân tích Phiếu giao hàng...' },
-                        { at: 60, label: '📝 Parsing Invoice...', status: 'Đang phân tích Hóa đơn...' },
-                        { at: 75, label: '🔀 Cross-referencing...', status: 'Đang đối soát chéo 3 tài liệu...' },
-                        { at: 85, label: '📊 Generating report...', status: 'Đang tạo báo cáo...' },
+                        { at: 30, label: '📝 Parsing Purchase Order...', status: 'Extracting PO data...' },
+                        { at: 45, label: '📝 Parsing Delivery Note...', status: 'Extracting DN data...' },
+                        { at: 60, label: '📝 Parsing Invoice...', status: 'Extracting Invoice data...' },
+                        { at: 75, label: '🔀 Cross-referencing...', status: 'Cross-referencing 3 documents...' },
+                        { at: 85, label: '📊 Generating report...', status: 'Generating match report...' },
                     ]
                     const stage = stages.filter(s => newPercent >= s.at).pop()
                     return { percent: newPercent, label: stage?.label || prev.label, status: stage?.status || prev.status }
                 })
             }, 2000)
 
-            const response = await fetch('/api/match', {
+            const response = await fetch(`${API_BASE}/api/match`, {
                 method: 'POST',
                 body: formData,
             })
@@ -85,7 +89,7 @@ export default function App() {
             }
 
             const data = await response.json()
-            setProgress({ percent: 100, label: '✅ Done!', status: 'Hoàn thành!' })
+            setProgress({ percent: 100, label: '✅ Done!', status: 'Complete!' })
 
             setTimeout(() => {
                 setResult(data)
@@ -114,7 +118,7 @@ export default function App() {
                     <span></span> AI-Powered Supply Chain
                 </div>
                 <h1>3-Way Matcher</h1>
-                <p>Upload Purchase Order, Delivery Note, and Invoice để đối soát tự động bằng AI</p>
+                <p>Upload Purchase Order, Delivery Note, and Invoice for automated AI reconciliation</p>
             </header>
 
             {/* Step Indicator */}
@@ -127,7 +131,7 @@ export default function App() {
                         <FileUpload
                             type="po"
                             label="Purchase Order"
-                            sublabel="Đơn đặt hàng"
+                            sublabel="PO Document"
                             icon="📋"
                             file={files.po}
                             onFileChange={handleFileChange}
@@ -135,7 +139,7 @@ export default function App() {
                         <FileUpload
                             type="dn"
                             label="Delivery Note"
-                            sublabel="Phiếu giao hàng"
+                            sublabel="DN Document"
                             icon="🚚"
                             file={files.dn}
                             onFileChange={handleFileChange}
@@ -143,7 +147,7 @@ export default function App() {
                         <FileUpload
                             type="inv"
                             label="Invoice"
-                            sublabel="Hóa đơn"
+                            sublabel="INV Document"
                             icon="🧾"
                             file={files.inv}
                             onFileChange={handleFileChange}
@@ -152,7 +156,7 @@ export default function App() {
 
                     {error && (
                         <div className="error-card">
-                            <h3>❌ Lỗi xử lý</h3>
+                            <h3>❌ Processing Error</h3>
                             <p>{error}</p>
                         </div>
                     )}
@@ -163,7 +167,7 @@ export default function App() {
                             disabled={!allUploaded}
                             onClick={handleRun}
                         >
-                            🚀 Bắt đầu đối soát
+                            🚀 Start Matching
                         </button>
                     </div>
                 </>
@@ -183,10 +187,10 @@ export default function App() {
             {/* Results */}
             {appState === 'done' && result && (
                 <div className="result">
-                    <ResultView report={result.report} summary={result.summary} />
+                    <ResultView report={result.report} summary={result.summary} parsedData={result.parsed_data} />
                     <div style={{ textAlign: 'center' }}>
                         <button className="reset-btn" onClick={handleReset}>
-                            🔄 Đối soát bộ tài liệu khác
+                            🔄 Match Another Set
                         </button>
                     </div>
                 </div>
